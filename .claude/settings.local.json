@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "Bash(npx create-next-app:*)",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "mcp__shadcn-ui__get_component_metadata",
+      "Bash(npx:*)",
+      "mcp__playwright__browser_navigate"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
