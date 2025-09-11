@@ -34,10 +34,25 @@ Note: This project hasn't been initialized yet. Once Next.js is set up, typical 
 - Mobile-first responsive design
 
 ### Component Structure (Planned)
-- Slider components for range configuration (using shadcn/ui Slider)
-- Lottery number display components with animations
-- History management components
-- AdSense integration components
+**Reference Layout**: `design_source/lotto_design_mockup.svg` (기본 레이아웃 참조용)
+*Note: 실제 구현 시 모던한 디자인으로 업그레이드*
+
+**핵심 레이아웃 구조**:
+1. **Header Area**: 로고 및 타이틀 "로또 번호 생성기"
+2. **Number Display Section**: 6개 네모칸으로 생성된 번호 표시 (상단)
+3. **Range Control Section**: 6개 세로 슬라이더로 각 번호별 범위 설정
+   - 빨간 핸들: 최대값 조정 (상단)
+   - 녹색 핸들: 최소값 조정 (하단)
+   - 실시간 값 표시
+4. **Control Legend**: 최대값/최소값 색상 범례
+5. **Generate Button**: "번호 만들기" 액션 버튼
+6. **Instructions**: 사용법 안내 텍스트
+
+**구현 컴포넌트**:
+- Slider components (shadcn/ui Slider 기반 커스터마이징)
+- Number display components with animations
+- History management components (추후)
+- AdSense integration components (추후)
 
 ## Agent Specialization
 This project uses specialized agents for different development phases:
@@ -68,3 +83,9 @@ Refer to `task.md` for detailed phase breakdowns and task assignments.
 - Prioritize the green color scheme defined in the CSS variables (primary colors)
 - Use the custom fonts: DM Sans (sans-serif), Lora (serif), IBM Plex Mono (monospace)
 - Follow the defined shadow and radius variables for consistent spacing and depth
+
+### Layout Reference
+- **Basic Layout**: `design_source/lotto_design_mockup.svg` provides the fundamental structure
+- **Design Philosophy**: Transform basic layout into modern, polished UI
+- **Mobile-First**: Ensure responsive design adapts the vertical slider layout for mobile
+- **Accessibility**: Maintain clear visual hierarchy and touch-friendly controls
