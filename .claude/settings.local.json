@@ -8,7 +8,9 @@
       "Bash(npm install:*)",
       "mcp__shadcn-ui__get_component_metadata",
       "Bash(npx:*)",
-      "mcp__playwright__browser_navigate"
+      "mcp__playwright__browser_navigate",
+      "mcp__shadcn-ui__get_component",
+      "mcp__playwright__browser_click"
     ],
     "deny": [],
     "ask": []

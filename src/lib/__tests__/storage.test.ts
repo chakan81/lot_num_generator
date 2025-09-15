@@ -1,0 +1,337 @@
+import { settingsStorage, historyStorage, copyToClipboard } from '../storage'
+import { SliderRange, AppSettings, LotteryHistory } from '../storage'
+
+describe('settingsStorage', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    jest.clearAllMocks()
+  })
+
+
+  describe('save', () => {
+    it('should save settings to localStorage with timestamp', () => {
+      const settings: AppSettings = {
+        ranges: [{ min: 1, max: 10 }],
+        showHistory: false,
+        lastUpdated: '2023-01-01'
+      }
+
+      settingsStorage.save(settings)
+
+      expect(localStorage.setItem).toHaveBeenCalledWith(
+        'lotto-user-settings',
+        expect.stringContaining('"ranges":[{"min":1,"max":10}]')
+      )
+      expect(localStorage.setItem).toHaveBeenCalledWith(
+        'lotto-user-settings',
+        expect.stringContaining('"showHistory":false')
+      )
+    })
+
+    it('should handle localStorage errors gracefully', () => {
+      localStorage.setItem.mockImplementation(() => {
+        throw new Error('Storage error')
+      })
+
+      expect(() => {
+        settingsStorage.save({
+          ranges: [],
+          showHistory: true,
+          lastUpdated: '2023-01-01'
+        })
+      }).not.toThrow()
+
+      expect(console.error).toHaveBeenCalledWith('Failed to save settings:', expect.any(Error))
+    })
+  })
+
+  describe('load', () => {
+    it('should load settings from localStorage', () => {
+      const mockSettings = {
+        ranges: [
+          { min: 5, max: 15 },    // 첫 번째만 다르게
+          { min: 1, max: 45 },    // 나머지 5개는 기본값
+          { min: 1, max: 45 },
+          { min: 1, max: 45 },
+          { min: 1, max: 45 },
+          { min: 1, max: 45 }
+        ],
+        showHistory: true,
+        lastUpdated: '2023-01-01'
+      }
+
+      localStorage.getItem.mockReturnValue(JSON.stringify(mockSettings))
+
+      const result = settingsStorage.load()
+
+      expect(localStorage.getItem).toHaveBeenCalledWith('lotto-user-settings')
+      expect(result.ranges).toHaveLength(6)
+      expect(result.ranges[0]).toEqual({ min: 5, max: 15 })
+      expect(result.ranges[1]).toEqual({ min: 1, max: 45 })
+      expect(result.showHistory).toBe(true)
+    })
+
+    it('should return default settings when localStorage is empty', () => {
+      localStorage.getItem.mockReturnValue(null)
+
+      const result = settingsStorage.load()
+
+      expect(result.ranges).toHaveLength(6)
+      expect(result.ranges[0]).toEqual({ min: 1, max: 45 })
+      expect(result.showHistory).toBe(true)
+    })
+
+    it('should return default settings when stored data is invalid', () => {
+      localStorage.getItem.mockReturnValue('invalid json')
+
+      const result = settingsStorage.load()
+
+      expect(result.ranges).toHaveLength(6)
+      expect(console.error).toHaveBeenCalledWith('Failed to load settings:', expect.any(Error))
+    })
+
+    it('should return default settings when ranges array is invalid', () => {
+      localStorage.getItem.mockReturnValue(JSON.stringify({
+        ranges: [{ min: 1, max: 10 }], // Only 1 range instead of 6
+        showHistory: true
+      }))
+
+      const result = settingsStorage.load()
+
+      expect(result.ranges).toHaveLength(6)
+      expect(result.ranges[0]).toEqual({ min: 1, max: 45 })
+    })
+  })
+
+  describe('reset', () => {
+    it('should clear localStorage and return default settings', () => {
+      const result = settingsStorage.reset()
+
+      expect(localStorage.removeItem).toHaveBeenCalledWith('lotto-user-settings')
+      expect(result.ranges).toHaveLength(6)
+      expect(result.showHistory).toBe(true)
+    })
+
+    it('should handle localStorage errors gracefully', () => {
+      localStorage.removeItem.mockImplementation(() => {
+        throw new Error('Storage error')
+      })
+
+      const result = settingsStorage.reset()
+
+      expect(console.error).toHaveBeenCalledWith('Failed to reset settings:', expect.any(Error))
+      expect(result.ranges).toHaveLength(6)
+    })
+  })
+})
+
+describe('historyStorage', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    jest.clearAllMocks()
+  })
+
+  describe('save', () => {
+    it('should save new entry with generated ID', () => {
+      const entry = {
+        numbers: [1, 2, 3, 4, 5, 6],
+        ranges: [{ min: 1, max: 45 }],
+        timestamp: '2023-01-01',
+        generatedBy: 'server' as const
+      }
+
+      historyStorage.save(entry)
+
+      expect(localStorage.setItem).toHaveBeenCalledWith(
+        'lotto-generation-history',
+        expect.stringContaining('"numbers":[1,2,3,4,5,6]')
+      )
+    })
+
+    it('should maintain maximum 10 entries (FIFO)', () => {
+      // Mock existing 10 entries
+      const existingEntries = Array.from({ length: 10 }, (_, i) => ({
+        id: `old-${i}`,
+        numbers: [i, i+1, i+2, i+3, i+4, i+5],
+        ranges: [{ min: 1, max: 45 }],
+        timestamp: `2023-01-0${i+1}`,
+        generatedBy: 'server' as const
+      }))
+
+      localStorage.getItem.mockReturnValue(JSON.stringify(existingEntries))
+
+      const newEntry = {
+        numbers: [7, 8, 9, 10, 11, 12],
+        ranges: [{ min: 1, max: 45 }],
+        timestamp: '2023-01-11',
+        generatedBy: 'client' as const
+      }
+
+      historyStorage.save(newEntry)
+
+      // Should save only 10 entries with the new one first
+      const savedData = JSON.parse(localStorage.setItem.mock.calls[0][1])
+      expect(savedData).toHaveLength(10)
+      expect(savedData[0].numbers).toEqual([7, 8, 9, 10, 11, 12])
+      expect(savedData[9].id).toBe('old-8') // Last old entry should be old-8 (old-9 removed)
+    })
+  })
+
+  describe('load', () => {
+    it('should load history from localStorage', () => {
+      const mockHistory = [{
+        id: 'test-1',
+        numbers: [1, 2, 3, 4, 5, 6],
+        ranges: [{ min: 1, max: 45 }],
+        timestamp: '2023-01-01',
+        generatedBy: 'server'
+      }]
+
+      localStorage.getItem.mockReturnValue(JSON.stringify(mockHistory))
+
+      const result = historyStorage.load()
+
+      expect(result).toEqual(mockHistory)
+    })
+
+    it('should return empty array when localStorage is empty', () => {
+      localStorage.getItem.mockReturnValue(null)
+
+      const result = historyStorage.load()
+
+      expect(result).toEqual([])
+    })
+
+    it('should return empty array when stored data is invalid', () => {
+      localStorage.getItem.mockReturnValue('invalid json')
+
+      const result = historyStorage.load()
+
+      expect(result).toEqual([])
+      expect(console.error).toHaveBeenCalledWith('Failed to load history:', expect.any(Error))
+    })
+  })
+
+  describe('clear', () => {
+    it('should clear history from localStorage', () => {
+      historyStorage.clear()
+
+      expect(localStorage.removeItem).toHaveBeenCalledWith('lotto-generation-history')
+    })
+  })
+
+  describe('remove', () => {
+    it('should remove specific entry by ID', () => {
+      const mockHistory = [
+        { id: 'keep-1', numbers: [1, 2, 3, 4, 5, 6], ranges: [], timestamp: '2023-01-01', generatedBy: 'server' as const },
+        { id: 'remove-me', numbers: [7, 8, 9, 10, 11, 12], ranges: [], timestamp: '2023-01-02', generatedBy: 'client' as const },
+        { id: 'keep-2', numbers: [13, 14, 15, 16, 17, 18], ranges: [], timestamp: '2023-01-03', generatedBy: 'server' as const }
+      ]
+
+      localStorage.getItem.mockReturnValue(JSON.stringify(mockHistory))
+
+      historyStorage.remove('remove-me')
+
+      const savedData = JSON.parse(localStorage.setItem.mock.calls[0][1])
+      expect(savedData).toHaveLength(2)
+      expect(savedData.find((entry: any) => entry.id === 'remove-me')).toBeUndefined()
+      expect(savedData.find((entry: any) => entry.id === 'keep-1')).toBeDefined()
+      expect(savedData.find((entry: any) => entry.id === 'keep-2')).toBeDefined()
+    })
+  })
+})
+
+describe('copyToClipboard', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('should copy numbers using navigator.clipboard when available', async () => {
+    const numbers = [1, 2, 3, 4, 5, 6]
+
+    const result = await copyToClipboard(numbers)
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('1, 2, 3, 4, 5, 6')
+    expect(result).toBe(true)
+  })
+
+  it('should use fallback when navigator.clipboard fails', async () => {
+    // Temporarily override window.isSecureContext to force fallback
+    const originalIsSecureContext = window.isSecureContext
+    Object.defineProperty(window, 'isSecureContext', {
+      value: false,
+      configurable: true,
+    })
+
+    // Mock DOM methods for fallback
+    const mockTextArea = {
+      value: '',
+      style: {},
+      select: jest.fn(),
+    }
+    jest.spyOn(document, 'createElement').mockReturnValue(mockTextArea as any)
+    jest.spyOn(document.body, 'appendChild').mockImplementation(() => mockTextArea as any)
+    jest.spyOn(document.body, 'removeChild').mockImplementation(() => mockTextArea as any)
+    jest.spyOn(document, 'execCommand').mockReturnValue(true)
+
+    const numbers = [7, 8, 9, 10, 11, 12]
+
+    const result = await copyToClipboard(numbers)
+
+    // Should use fallback due to insecure context
+    expect(document.createElement).toHaveBeenCalledWith('textarea')
+    expect(mockTextArea.value).toBe('7, 8, 9, 10, 11, 12')
+    expect(document.execCommand).toHaveBeenCalledWith('copy')
+    expect(result).toBe(true)
+
+    // Restore original value
+    Object.defineProperty(window, 'isSecureContext', {
+      value: originalIsSecureContext,
+      configurable: true,
+    })
+  })
+
+  it('should return false when fallback method fails', async () => {
+    // Temporarily override window.isSecureContext to force fallback
+    const originalIsSecureContext = window.isSecureContext
+    Object.defineProperty(window, 'isSecureContext', {
+      value: false,
+      configurable: true,
+    })
+
+    const mockTextArea = {
+      value: '',
+      style: {},
+      select: jest.fn(),
+    }
+    jest.spyOn(document, 'createElement').mockReturnValue(mockTextArea as any)
+    jest.spyOn(document.body, 'appendChild').mockImplementation(() => mockTextArea as any)
+    jest.spyOn(document.body, 'removeChild').mockImplementation(() => mockTextArea as any)
+    jest.spyOn(document, 'execCommand').mockReturnValue(false) // Make fallback fail
+
+    const numbers = [1, 2, 3, 4, 5, 6]
+
+    const result = await copyToClipboard(numbers)
+
+    expect(result).toBe(false)
+    expect(document.execCommand).toHaveBeenCalledWith('copy')
+
+    // Restore original value
+    Object.defineProperty(window, 'isSecureContext', {
+      value: originalIsSecureContext,
+      configurable: true,
+    })
+  })
+
+  it('should return false and log error when exception occurs', async () => {
+    // Mock clipboard.writeText to throw an error
+    navigator.clipboard.writeText.mockRejectedValue(new Error('Clipboard API error'))
+
+    const numbers = [1, 2, 3, 4, 5, 6]
+
+    const result = await copyToClipboard(numbers)
+
+    expect(result).toBe(false)
+    expect(console.error).toHaveBeenCalledWith('Failed to copy to clipboard:', expect.any(Error))
+  })
+})

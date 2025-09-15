@@ -1,14 +1,12 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { DualSlider } from '@/components/ui/dual-slider'
-
-interface SliderRange {
-  min: number
-  max: number
-}
+import { settingsStorage, historyStorage, copyToClipboard, type SliderRange, type LotteryHistory } from '@/lib/storage'
+import { Copy, History, RotateCcw } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function Home() {
   const [ranges, setRanges] = useState<SliderRange[]>([
@@ -22,6 +20,29 @@ export default function Home() {
 
   const [generatedNumbers, setGeneratedNumbers] = useState<number[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
+  const [history, setHistory] = useState<LotteryHistory[]>([])
+  const [showHistory, setShowHistory] = useState(false)
+
+  // Load settings and history on mount
+  useEffect(() => {
+    const settings = settingsStorage.load()
+    setRanges(settings.ranges)
+    setShowHistory(settings.showHistory)
+    setHistory(historyStorage.load())
+  }, [])
+
+  // Save settings when ranges change (with debounce)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      settingsStorage.save({
+        ranges,
+        showHistory,
+        lastUpdated: new Date().toISOString()
+      })
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [ranges, showHistory])
 
   const updateRange = useCallback((index: number, field: 'min' | 'max', value: number) => {
     setRanges(prev => {
@@ -40,6 +61,8 @@ export default function Home() {
 
   const generateNumbers = useCallback(async () => {
     setIsGenerating(true)
+    let generatedBy: 'server' | 'client' = 'server'
+    let numbers: number[] = []
 
     try {
       const response = await fetch('/api/generate', {
@@ -56,11 +79,12 @@ export default function Home() {
       }
 
       const data = await response.json()
-      setGeneratedNumbers(data.numbers)
+      numbers = data.numbers
     } catch (error) {
       console.error('Number generation error:', error)
+      generatedBy = 'client'
+
       // Fallback to client-side generation on error
-      const numbers: number[] = []
       const usedNumbers = new Set<number>()
 
       for (let i = 0; i < 6; i++) {
@@ -77,12 +101,48 @@ export default function Home() {
         numbers.push(number)
         usedNumbers.add(number)
       }
-
-      setGeneratedNumbers(numbers)
     } finally {
       setIsGenerating(false)
     }
+
+    // Update state
+    setGeneratedNumbers(numbers)
+
+    // Save to history
+    if (numbers.length > 0) {
+      historyStorage.save({
+        numbers,
+        ranges: [...ranges],
+        timestamp: new Date().toISOString(),
+        generatedBy
+      })
+      setHistory(historyStorage.load())
+    }
   }, [ranges])
+
+  const handleCopyNumbers = useCallback(async (numbers: number[]) => {
+    const success = await copyToClipboard(numbers)
+    if (success) {
+      toast.success('번호가 복사되었습니다!', {
+        description: numbers.join(', ')
+      })
+    } else {
+      toast.error('복사에 실패했습니다.', {
+        description: '다시 시도해주세요.'
+      })
+    }
+  }, [])
+
+  const resetSettings = useCallback(() => {
+    const defaultSettings = settingsStorage.reset()
+    setRanges(defaultSettings.ranges)
+    setShowHistory(defaultSettings.showHistory)
+  }, [])
+
+  const clearHistory = useCallback(() => {
+    historyStorage.clear()
+    setHistory([])
+  }, [])
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-background to-muted/20">
@@ -110,6 +170,20 @@ export default function Home() {
               </Card>
             ))}
           </div>
+
+          {/* Copy Button */}
+          {generatedNumbers.length > 0 && (
+            <div className="flex justify-center mt-6">
+              <Button
+                onClick={() => handleCopyNumbers(generatedNumbers)}
+                variant="outline"
+                size="sm"
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                번호 복사
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Range Controls */}
@@ -171,11 +245,96 @@ export default function Home() {
         </div>
 
         {/* Usage Instructions */}
-        <div className="text-center">
+        <div className="text-center mb-12">
           <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
             각 번호의 세로 슬라이더에서 빨간색 핸들(최대값)과 초록색 핸들(최소값)을 드래그하여 범위를 설정한 후 '번호 만들기' 버튼을 눌러보세요
           </p>
         </div>
+
+        {/* Settings & History Controls */}
+        <div className="flex justify-center gap-4 mb-8">
+          <Button
+            onClick={() => setShowHistory(!showHistory)}
+            variant="outline"
+            size="sm"
+          >
+            <History className="w-4 h-4 mr-2" />
+            히스토리 {showHistory ? '숨기기' : '보기'}
+          </Button>
+          <Button
+            onClick={resetSettings}
+            variant="outline"
+            size="sm"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            범위 설정 초기화
+          </Button>
+        </div>
+
+        {/* History Panel */}
+        {showHistory && (
+          <Card className="max-w-4xl mx-auto">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">생성 기록</CardTitle>
+                {history.length > 0 && (
+                  <Button
+                    onClick={clearHistory}
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                  >
+                    전체 삭제
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {history.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  아직 생성된 번호가 없습니다.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {history.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="flex gap-1">
+                            {entry.numbers.map((number, index) => (
+                              <span
+                                key={index}
+                                className="inline-flex items-center justify-center w-8 h-8 text-xs font-semibold bg-primary text-primary-foreground rounded-full"
+                              >
+                                {number}
+                              </span>
+                            ))}
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full ${entry.generatedBy === 'server' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                            {entry.generatedBy === 'server' ? 'API' : '클라이언트'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(entry.timestamp).toLocaleString('ko-KR')}
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => handleCopyNumbers(entry.numbers)}
+                        variant="ghost"
+                        size="sm"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </main>
   )
