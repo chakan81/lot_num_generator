@@ -41,31 +41,47 @@ export default function Home() {
   const generateNumbers = useCallback(async () => {
     setIsGenerating(true)
 
-    // Simulate loading animation
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ranges }),
+      })
 
-    const numbers: number[] = []
-    const usedNumbers = new Set<number>()
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || '번호 생성에 실패했습니다.')
+      }
 
-    for (let i = 0; i < 6; i++) {
-      const { min, max } = ranges[i]
-      let number: number
-      let attempts = 0
+      const data = await response.json()
+      setGeneratedNumbers(data.numbers)
+    } catch (error) {
+      console.error('Number generation error:', error)
+      // Fallback to client-side generation on error
+      const numbers: number[] = []
+      const usedNumbers = new Set<number>()
 
-      do {
-        number = Math.floor(Math.random() * (max - min + 1)) + min
-        attempts++
+      for (let i = 0; i < 6; i++) {
+        const { min, max } = ranges[i]
+        let number: number
+        let attempts = 0
 
-        // Prevent infinite loop if all numbers in range are used
-        if (attempts > 100) break
-      } while (usedNumbers.has(number))
+        do {
+          number = Math.floor(Math.random() * (max - min + 1)) + min
+          attempts++
+          if (attempts > 100) break
+        } while (usedNumbers.has(number))
 
-      numbers.push(number)
-      usedNumbers.add(number)
+        numbers.push(number)
+        usedNumbers.add(number)
+      }
+
+      setGeneratedNumbers(numbers)
+    } finally {
+      setIsGenerating(false)
     }
-
-    setGeneratedNumbers(numbers)
-    setIsGenerating(false)
   }, [ranges])
 
   return (
