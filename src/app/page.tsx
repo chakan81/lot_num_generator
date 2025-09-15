@@ -3,9 +3,10 @@
 import { useState, useCallback, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { DualSlider } from '@/components/ui/dual-slider'
-import { settingsStorage, historyStorage, copyToClipboard, type SliderRange, type LotteryHistory } from '@/lib/storage'
-import { Copy, History, RotateCcw } from 'lucide-react'
+import { settingsStorage, historyStorage, copyToClipboard, copyMultipleToClipboard, type SliderRange, type LotteryHistory } from '@/lib/storage'
+import { Copy, History, RotateCcw, Trash2, CheckSquare } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function Home() {
@@ -22,6 +23,10 @@ export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [history, setHistory] = useState<LotteryHistory[]>([])
   const [showHistory, setShowHistory] = useState(false)
+
+  // Multi-select functionality states
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set())
+  const [isSelectMode, setIsSelectMode] = useState(false)
 
   // Load settings and history on mount
   useEffect(() => {
@@ -43,6 +48,14 @@ export default function Home() {
 
     return () => clearTimeout(timeoutId)
   }, [ranges, showHistory])
+
+  // Auto-exit select mode when history becomes empty
+  useEffect(() => {
+    if (isSelectMode && history.length === 0) {
+      setIsSelectMode(false)
+      setSelectedHistoryIds(new Set())
+    }
+  }, [history.length, isSelectMode])
 
   const updateRange = useCallback((index: number, field: 'min' | 'max', value: number) => {
     setRanges(prev => {
@@ -139,10 +152,67 @@ export default function Home() {
     setShowHistory(defaultSettings.showHistory)
   }, [])
 
-  const clearHistory = useCallback(() => {
-    historyStorage.clear()
-    setHistory([])
+
+  // Multi-select functionality handlers
+  const toggleSelectMode = useCallback(() => {
+    setIsSelectMode(prev => !prev)
+    setSelectedHistoryIds(new Set()) // Clear selections when toggling mode
   }, [])
+
+  const toggleHistorySelection = useCallback((id: string) => {
+    setSelectedHistoryIds(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(id)) {
+        newSet.delete(id)
+      } else {
+        newSet.add(id)
+      }
+      return newSet
+    })
+  }, [])
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedHistoryIds(prev => {
+      if (prev.size === history.length) {
+        // If all are selected, deselect all
+        return new Set()
+      } else {
+        // If not all are selected, select all
+        return new Set(history.map(entry => entry.id))
+      }
+    })
+  }, [history])
+
+  const handleMultipleCopy = useCallback(async () => {
+    const selectedHistories = history.filter(entry => selectedHistoryIds.has(entry.id))
+    if (selectedHistories.length === 0) {
+      toast.warning('복사할 기록을 선택해주세요.')
+      return
+    }
+
+    const success = await copyMultipleToClipboard(selectedHistories)
+    if (success) {
+      toast.success(`${selectedHistories.length}개의 번호가 복사되었습니다!`, {
+        description: '각 번호는 줄바꿈으로 구분됩니다.'
+      })
+    } else {
+      toast.error('복사에 실패했습니다.', {
+        description: '다시 시도해주세요.'
+      })
+    }
+  }, [history, selectedHistoryIds])
+
+  const handleMultipleDelete = useCallback(() => {
+    if (selectedHistoryIds.size === 0) {
+      toast.warning('삭제할 기록을 선택해주세요.')
+      return
+    }
+
+    historyStorage.removeMultiple(Array.from(selectedHistoryIds))
+    setHistory(prev => prev.filter(entry => !selectedHistoryIds.has(entry.id)))
+    setSelectedHistoryIds(new Set())
+    toast.success(`${selectedHistoryIds.size}개의 기록이 삭제되었습니다.`)
+  }, [selectedHistoryIds])
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-background to-muted/20">
@@ -276,18 +346,56 @@ export default function Home() {
           <Card className="max-w-4xl mx-auto">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">생성 기록</CardTitle>
-                {history.length > 0 && (
-                  <Button
-                    onClick={clearHistory}
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                  >
-                    전체 삭제
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-lg">생성 기록</CardTitle>
+                  {history.length > 0 && (
+                    <Button
+                      onClick={toggleSelectMode}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <CheckSquare className="w-4 h-4 mr-2" />
+                      {isSelectMode ? '선택 취소' : '선택 모드'}
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {isSelectMode && selectedHistoryIds.size > 0 && (
+                    <>
+                      <Button
+                        onClick={handleMultipleCopy}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <Copy className="w-4 h-4 mr-2" />
+                        선택 복사 ({selectedHistoryIds.size})
+                      </Button>
+                      <Button
+                        onClick={handleMultipleDelete}
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        선택 삭제 ({selectedHistoryIds.size})
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
+
+              {isSelectMode && history.length > 0 && (
+                <div className="flex items-center gap-2 pt-2">
+                  <Checkbox
+                    checked={selectedHistoryIds.size === history.length}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    전체 선택 ({selectedHistoryIds.size}/{history.length})
+                  </span>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               {history.length === 0 ? (
@@ -299,8 +407,15 @@ export default function Home() {
                   {history.map((entry) => (
                     <div
                       key={entry.id}
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors"
+                      className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors"
                     >
+                      {isSelectMode && (
+                        <Checkbox
+                          checked={selectedHistoryIds.has(entry.id)}
+                          onCheckedChange={() => toggleHistorySelection(entry.id)}
+                        />
+                      )}
+
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <div className="flex gap-1">
@@ -321,13 +436,16 @@ export default function Home() {
                           {new Date(entry.timestamp).toLocaleString('ko-KR')}
                         </p>
                       </div>
-                      <Button
-                        onClick={() => handleCopyNumbers(entry.numbers)}
-                        variant="ghost"
-                        size="sm"
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
+
+                      {!isSelectMode && (
+                        <Button
+                          onClick={() => handleCopyNumbers(entry.numbers)}
+                          variant="ghost"
+                          size="sm"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>

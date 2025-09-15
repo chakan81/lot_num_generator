@@ -1,4 +1,4 @@
-import { settingsStorage, historyStorage, copyToClipboard } from '../storage'
+import { settingsStorage, historyStorage, copyToClipboard, copyMultipleToClipboard } from '../storage'
 import { SliderRange, AppSettings, LotteryHistory } from '../storage'
 
 describe('settingsStorage', () => {
@@ -212,13 +212,6 @@ describe('historyStorage', () => {
     })
   })
 
-  describe('clear', () => {
-    it('should clear history from localStorage', () => {
-      historyStorage.clear()
-
-      expect(localStorage.removeItem).toHaveBeenCalledWith('lotto-generation-history')
-    })
-  })
 
   describe('remove', () => {
     it('should remove specific entry by ID', () => {
@@ -237,6 +230,72 @@ describe('historyStorage', () => {
       expect(savedData.find((entry: any) => entry.id === 'remove-me')).toBeUndefined()
       expect(savedData.find((entry: any) => entry.id === 'keep-1')).toBeDefined()
       expect(savedData.find((entry: any) => entry.id === 'keep-2')).toBeDefined()
+    })
+  })
+
+  describe('removeMultiple', () => {
+    it('should remove multiple entries by IDs', () => {
+      const mockHistory = [
+        { id: 'keep-1', numbers: [1, 2, 3, 4, 5, 6], ranges: [], timestamp: '2023-01-01', generatedBy: 'server' as const },
+        { id: 'remove-1', numbers: [7, 8, 9, 10, 11, 12], ranges: [], timestamp: '2023-01-02', generatedBy: 'client' as const },
+        { id: 'keep-2', numbers: [13, 14, 15, 16, 17, 18], ranges: [], timestamp: '2023-01-03', generatedBy: 'server' as const },
+        { id: 'remove-2', numbers: [19, 20, 21, 22, 23, 24], ranges: [], timestamp: '2023-01-04', generatedBy: 'client' as const },
+        { id: 'keep-3', numbers: [25, 26, 27, 28, 29, 30], ranges: [], timestamp: '2023-01-05', generatedBy: 'server' as const }
+      ]
+
+      localStorage.getItem.mockReturnValue(JSON.stringify(mockHistory))
+
+      historyStorage.removeMultiple(['remove-1', 'remove-2'])
+
+      const savedData = JSON.parse(localStorage.setItem.mock.calls[0][1])
+      expect(savedData).toHaveLength(3)
+      expect(savedData.find((entry: any) => entry.id === 'remove-1')).toBeUndefined()
+      expect(savedData.find((entry: any) => entry.id === 'remove-2')).toBeUndefined()
+      expect(savedData.find((entry: any) => entry.id === 'keep-1')).toBeDefined()
+      expect(savedData.find((entry: any) => entry.id === 'keep-2')).toBeDefined()
+      expect(savedData.find((entry: any) => entry.id === 'keep-3')).toBeDefined()
+    })
+
+    it('should handle empty ID array', () => {
+      const mockHistory = [
+        { id: 'keep-1', numbers: [1, 2, 3, 4, 5, 6], ranges: [], timestamp: '2023-01-01', generatedBy: 'server' as const }
+      ]
+
+      localStorage.getItem.mockReturnValue(JSON.stringify(mockHistory))
+
+      historyStorage.removeMultiple([])
+
+      const savedData = JSON.parse(localStorage.setItem.mock.calls[0][1])
+      expect(savedData).toHaveLength(1)
+      expect(savedData[0].id).toBe('keep-1')
+    })
+
+    it('should handle non-existent IDs gracefully', () => {
+      const mockHistory = [
+        { id: 'keep-1', numbers: [1, 2, 3, 4, 5, 6], ranges: [], timestamp: '2023-01-01', generatedBy: 'server' as const },
+        { id: 'keep-2', numbers: [7, 8, 9, 10, 11, 12], ranges: [], timestamp: '2023-01-02', generatedBy: 'client' as const }
+      ]
+
+      localStorage.getItem.mockReturnValue(JSON.stringify(mockHistory))
+
+      historyStorage.removeMultiple(['non-existent-1', 'non-existent-2'])
+
+      const savedData = JSON.parse(localStorage.setItem.mock.calls[0][1])
+      expect(savedData).toHaveLength(2)
+      expect(savedData.find((entry: any) => entry.id === 'keep-1')).toBeDefined()
+      expect(savedData.find((entry: any) => entry.id === 'keep-2')).toBeDefined()
+    })
+
+    it('should handle localStorage errors gracefully', () => {
+      localStorage.getItem.mockImplementation(() => {
+        throw new Error('Storage error')
+      })
+
+      expect(() => {
+        historyStorage.removeMultiple(['some-id'])
+      }).not.toThrow()
+
+      expect(console.error).toHaveBeenCalledWith('Failed to remove multiple history entries:', expect.any(Error))
     })
   })
 })
@@ -333,5 +392,108 @@ describe('copyToClipboard', () => {
 
     expect(result).toBe(false)
     expect(console.error).toHaveBeenCalledWith('Failed to copy to clipboard:', expect.any(Error))
+  })
+})
+
+describe('copyMultipleToClipboard', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    // Reset navigator.clipboard.writeText to success by default
+    navigator.clipboard.writeText.mockResolvedValue()
+  })
+
+  it('should copy multiple lottery histories to clipboard with newlines', async () => {
+    const histories = [
+      { id: 'hist-1', numbers: [1, 2, 3, 4, 5, 6], ranges: [], timestamp: '2023-01-01', generatedBy: 'server' as const },
+      { id: 'hist-2', numbers: [7, 8, 9, 10, 11, 12], ranges: [], timestamp: '2023-01-02', generatedBy: 'client' as const },
+      { id: 'hist-3', numbers: [13, 14, 15, 16, 17, 18], ranges: [], timestamp: '2023-01-03', generatedBy: 'server' as const }
+    ]
+
+    const result = await copyMultipleToClipboard(histories)
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('1, 2, 3, 4, 5, 6\n7, 8, 9, 10, 11, 12\n13, 14, 15, 16, 17, 18')
+    expect(result).toBe(true)
+  })
+
+  it('should handle single history', async () => {
+    const histories = [
+      { id: 'hist-1', numbers: [1, 2, 3, 4, 5, 6], ranges: [], timestamp: '2023-01-01', generatedBy: 'server' as const }
+    ]
+
+    const result = await copyMultipleToClipboard(histories)
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('1, 2, 3, 4, 5, 6')
+    expect(result).toBe(true)
+  })
+
+  it('should handle empty history array', async () => {
+    const histories: any[] = []
+
+    const result = await copyMultipleToClipboard(histories)
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('')
+    expect(result).toBe(true)
+  })
+
+  it('should use fallback when navigator.clipboard fails', async () => {
+    // Temporarily override window.isSecureContext to force fallback
+    const originalIsSecureContext = window.isSecureContext
+    Object.defineProperty(window, 'isSecureContext', {
+      value: false,
+      configurable: true,
+    })
+
+    const mockTextArea = {
+      value: '',
+      style: {},
+      select: jest.fn(),
+    }
+    jest.spyOn(document, 'createElement').mockReturnValue(mockTextArea as any)
+    jest.spyOn(document.body, 'appendChild').mockImplementation(() => mockTextArea as any)
+    jest.spyOn(document.body, 'removeChild').mockImplementation(() => mockTextArea as any)
+    jest.spyOn(document, 'execCommand').mockReturnValue(true)
+
+    const histories = [
+      { id: 'hist-1', numbers: [1, 2, 3, 4, 5, 6], ranges: [], timestamp: '2023-01-01', generatedBy: 'server' as const },
+      { id: 'hist-2', numbers: [7, 8, 9, 10, 11, 12], ranges: [], timestamp: '2023-01-02', generatedBy: 'client' as const }
+    ]
+
+    const result = await copyMultipleToClipboard(histories)
+
+    expect(document.createElement).toHaveBeenCalledWith('textarea')
+    expect(mockTextArea.value).toBe('1, 2, 3, 4, 5, 6\n7, 8, 9, 10, 11, 12')
+    expect(document.execCommand).toHaveBeenCalledWith('copy')
+    expect(result).toBe(true)
+
+    // Restore original value
+    Object.defineProperty(window, 'isSecureContext', {
+      value: originalIsSecureContext,
+      configurable: true,
+    })
+  })
+
+  it('should return false when clipboard operation fails', async () => {
+    navigator.clipboard.writeText.mockRejectedValue(new Error('Clipboard error'))
+
+    const histories = [
+      { id: 'hist-1', numbers: [1, 2, 3, 4, 5, 6], ranges: [], timestamp: '2023-01-01', generatedBy: 'server' as const }
+    ]
+
+    const result = await copyMultipleToClipboard(histories)
+
+    expect(result).toBe(false)
+    expect(console.error).toHaveBeenCalledWith('Failed to copy multiple histories to clipboard:', expect.any(Error))
+  })
+
+  it('should format numbers consistently with single copy', async () => {
+    const histories = [
+      { id: 'hist-1', numbers: [1, 23, 45, 12, 34, 6], ranges: [], timestamp: '2023-01-01', generatedBy: 'server' as const },
+      { id: 'hist-2', numbers: [7, 8, 9, 10, 11, 12], ranges: [], timestamp: '2023-01-02', generatedBy: 'client' as const }
+    ]
+
+    const result = await copyMultipleToClipboard(histories)
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('1, 23, 45, 12, 34, 6\n7, 8, 9, 10, 11, 12')
+    expect(result).toBe(true)
   })
 })

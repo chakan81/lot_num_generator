@@ -109,13 +109,6 @@ export const historyStorage = {
     return []
   },
 
-  clear: (): void => {
-    try {
-      localStorage.removeItem(STORAGE_KEYS.HISTORY)
-    } catch (error) {
-      console.error('Failed to clear history:', error)
-    }
-  },
 
   remove: (id: string): void => {
     try {
@@ -124,6 +117,16 @@ export const historyStorage = {
       localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(filtered))
     } catch (error) {
       console.error('Failed to remove history entry:', error)
+    }
+  },
+
+  removeMultiple: (ids: string[]): void => {
+    try {
+      const history = historyStorage.load()
+      const filtered = history.filter(entry => !ids.includes(entry.id))
+      localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(filtered))
+    } catch (error) {
+      console.error('Failed to remove multiple history entries:', error)
     }
   }
 }
@@ -150,6 +153,34 @@ export const copyToClipboard = async (numbers: number[]): Promise<boolean> => {
     }
   } catch (error) {
     console.error('Failed to copy to clipboard:', error)
+    return false
+  }
+}
+
+// Copy multiple lottery histories to clipboard
+export const copyMultipleToClipboard = async (histories: LotteryHistory[]): Promise<boolean> => {
+  try {
+    const text = histories
+      .map(history => history.numbers.join(', '))
+      .join('\n')
+
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text)
+      return true
+    } else {
+      // Fallback for non-HTTPS or older browsers
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      textArea.style.position = 'fixed'
+      textArea.style.opacity = '0'
+      document.body.appendChild(textArea)
+      textArea.select()
+      const result = document.execCommand('copy')
+      document.body.removeChild(textArea)
+      return result
+    }
+  } catch (error) {
+    console.error('Failed to copy multiple histories to clipboard:', error)
     return false
   }
 }
