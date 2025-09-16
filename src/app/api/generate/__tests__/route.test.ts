@@ -5,7 +5,7 @@ import { NextRequest } from 'next/server'
 const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
 
 // Mock NextRequest
-const createMockRequest = (body: any) => {
+const createMockRequest = (body: unknown) => {
   const mockRequest = {
     json: jest.fn().mockResolvedValue(body)
   } as unknown as NextRequest

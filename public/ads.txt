@@ -1,0 +1,12 @@
+# ads.txt file for Lottery Number Generator
+# This file should be configured once you receive your AdSense publisher ID
+# Replace "pub-XXXXXXXXXXXXXXXX" with your actual AdSense publisher ID
+# Example format:
+# google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
+#
+# For now, this is a placeholder file. To activate:
+# 1. Get approved for Google AdSense
+# 2. Replace the placeholder with your actual publisher ID
+# 3. Uncomment the line below
+#
+# google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0

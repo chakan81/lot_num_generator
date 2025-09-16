@@ -1,5 +1,23 @@
 import { settingsStorage, historyStorage, copyToClipboard, copyMultipleToClipboard } from '../storage'
-import { SliderRange, AppSettings, LotteryHistory } from '../storage'
+import { AppSettings, LotteryHistory } from '../storage'
+
+// Type definitions for mocked functions
+interface MockLocalStorage {
+  getItem: jest.MockedFunction<(key: string) => string | null>
+  setItem: jest.MockedFunction<(key: string, value: string) => void>
+  removeItem: jest.MockedFunction<(key: string) => void>
+  clear: jest.MockedFunction<() => void>
+}
+
+interface MockClipboard {
+  writeText: jest.MockedFunction<(text: string) => Promise<void>>
+}
+
+// Type assertions for localStorage mocks
+const mockLocalStorage = localStorage as unknown as MockLocalStorage
+
+// Type assertion for clipboard mock
+const mockClipboard = navigator.clipboard as unknown as MockClipboard
 
 describe('settingsStorage', () => {
   beforeEach(() => {
@@ -29,7 +47,7 @@ describe('settingsStorage', () => {
     })
 
     it('should handle localStorage errors gracefully', () => {
-      localStorage.setItem.mockImplementation(() => {
+      mockLocalStorage.setItem.mockImplementation(() => {
         throw new Error('Storage error')
       })
 
@@ -60,7 +78,7 @@ describe('settingsStorage', () => {
         lastUpdated: '2023-01-01'
       }
 
-      localStorage.getItem.mockReturnValue(JSON.stringify(mockSettings))
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(mockSettings))
 
       const result = settingsStorage.load()
 
@@ -72,7 +90,7 @@ describe('settingsStorage', () => {
     })
 
     it('should return default settings when localStorage is empty', () => {
-      localStorage.getItem.mockReturnValue(null)
+      mockLocalStorage.getItem.mockReturnValue(null)
 
       const result = settingsStorage.load()
 
@@ -82,7 +100,7 @@ describe('settingsStorage', () => {
     })
 
     it('should return default settings when stored data is invalid', () => {
-      localStorage.getItem.mockReturnValue('invalid json')
+      mockLocalStorage.getItem.mockReturnValue('invalid json')
 
       const result = settingsStorage.load()
 
@@ -91,7 +109,7 @@ describe('settingsStorage', () => {
     })
 
     it('should return default settings when ranges array is invalid', () => {
-      localStorage.getItem.mockReturnValue(JSON.stringify({
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify({
         ranges: [{ min: 1, max: 10 }], // Only 1 range instead of 6
         showHistory: true
       }))
@@ -113,7 +131,7 @@ describe('settingsStorage', () => {
     })
 
     it('should handle localStorage errors gracefully', () => {
-      localStorage.removeItem.mockImplementation(() => {
+      mockLocalStorage.removeItem.mockImplementation(() => {
         throw new Error('Storage error')
       })
 
@@ -158,7 +176,7 @@ describe('historyStorage', () => {
         generatedBy: 'server' as const
       }))
 
-      localStorage.getItem.mockReturnValue(JSON.stringify(existingEntries))
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(existingEntries))
 
       const newEntry = {
         numbers: [7, 8, 9, 10, 11, 12],
@@ -170,7 +188,7 @@ describe('historyStorage', () => {
       historyStorage.save(newEntry)
 
       // Should save only 10 entries with the new one first
-      const savedData = JSON.parse(localStorage.setItem.mock.calls[0][1])
+      const savedData = JSON.parse(mockLocalStorage.setItem.mock.calls[0][1])
       expect(savedData).toHaveLength(10)
       expect(savedData[0].numbers).toEqual([7, 8, 9, 10, 11, 12])
       expect(savedData[9].id).toBe('old-8') // Last old entry should be old-8 (old-9 removed)
@@ -187,7 +205,7 @@ describe('historyStorage', () => {
         generatedBy: 'server'
       }]
 
-      localStorage.getItem.mockReturnValue(JSON.stringify(mockHistory))
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(mockHistory))
 
       const result = historyStorage.load()
 
@@ -195,7 +213,7 @@ describe('historyStorage', () => {
     })
 
     it('should return empty array when localStorage is empty', () => {
-      localStorage.getItem.mockReturnValue(null)
+      mockLocalStorage.getItem.mockReturnValue(null)
 
       const result = historyStorage.load()
 
@@ -203,7 +221,7 @@ describe('historyStorage', () => {
     })
 
     it('should return empty array when stored data is invalid', () => {
-      localStorage.getItem.mockReturnValue('invalid json')
+      mockLocalStorage.getItem.mockReturnValue('invalid json')
 
       const result = historyStorage.load()
 
@@ -221,15 +239,15 @@ describe('historyStorage', () => {
         { id: 'keep-2', numbers: [13, 14, 15, 16, 17, 18], ranges: [], timestamp: '2023-01-03', generatedBy: 'server' as const }
       ]
 
-      localStorage.getItem.mockReturnValue(JSON.stringify(mockHistory))
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(mockHistory))
 
       historyStorage.remove('remove-me')
 
-      const savedData = JSON.parse(localStorage.setItem.mock.calls[0][1])
+      const savedData = JSON.parse(mockLocalStorage.setItem.mock.calls[0][1])
       expect(savedData).toHaveLength(2)
-      expect(savedData.find((entry: any) => entry.id === 'remove-me')).toBeUndefined()
-      expect(savedData.find((entry: any) => entry.id === 'keep-1')).toBeDefined()
-      expect(savedData.find((entry: any) => entry.id === 'keep-2')).toBeDefined()
+      expect(savedData.find((entry: LotteryHistory) => entry.id === 'remove-me')).toBeUndefined()
+      expect(savedData.find((entry: LotteryHistory) => entry.id === 'keep-1')).toBeDefined()
+      expect(savedData.find((entry: LotteryHistory) => entry.id === 'keep-2')).toBeDefined()
     })
   })
 
@@ -243,17 +261,17 @@ describe('historyStorage', () => {
         { id: 'keep-3', numbers: [25, 26, 27, 28, 29, 30], ranges: [], timestamp: '2023-01-05', generatedBy: 'server' as const }
       ]
 
-      localStorage.getItem.mockReturnValue(JSON.stringify(mockHistory))
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(mockHistory))
 
       historyStorage.removeMultiple(['remove-1', 'remove-2'])
 
-      const savedData = JSON.parse(localStorage.setItem.mock.calls[0][1])
+      const savedData = JSON.parse(mockLocalStorage.setItem.mock.calls[0][1])
       expect(savedData).toHaveLength(3)
-      expect(savedData.find((entry: any) => entry.id === 'remove-1')).toBeUndefined()
-      expect(savedData.find((entry: any) => entry.id === 'remove-2')).toBeUndefined()
-      expect(savedData.find((entry: any) => entry.id === 'keep-1')).toBeDefined()
-      expect(savedData.find((entry: any) => entry.id === 'keep-2')).toBeDefined()
-      expect(savedData.find((entry: any) => entry.id === 'keep-3')).toBeDefined()
+      expect(savedData.find((entry: LotteryHistory) => entry.id === 'remove-1')).toBeUndefined()
+      expect(savedData.find((entry: LotteryHistory) => entry.id === 'remove-2')).toBeUndefined()
+      expect(savedData.find((entry: LotteryHistory) => entry.id === 'keep-1')).toBeDefined()
+      expect(savedData.find((entry: LotteryHistory) => entry.id === 'keep-2')).toBeDefined()
+      expect(savedData.find((entry: LotteryHistory) => entry.id === 'keep-3')).toBeDefined()
     })
 
     it('should handle empty ID array', () => {
@@ -261,11 +279,11 @@ describe('historyStorage', () => {
         { id: 'keep-1', numbers: [1, 2, 3, 4, 5, 6], ranges: [], timestamp: '2023-01-01', generatedBy: 'server' as const }
       ]
 
-      localStorage.getItem.mockReturnValue(JSON.stringify(mockHistory))
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(mockHistory))
 
       historyStorage.removeMultiple([])
 
-      const savedData = JSON.parse(localStorage.setItem.mock.calls[0][1])
+      const savedData = JSON.parse(mockLocalStorage.setItem.mock.calls[0][1])
       expect(savedData).toHaveLength(1)
       expect(savedData[0].id).toBe('keep-1')
     })
@@ -276,18 +294,18 @@ describe('historyStorage', () => {
         { id: 'keep-2', numbers: [7, 8, 9, 10, 11, 12], ranges: [], timestamp: '2023-01-02', generatedBy: 'client' as const }
       ]
 
-      localStorage.getItem.mockReturnValue(JSON.stringify(mockHistory))
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(mockHistory))
 
       historyStorage.removeMultiple(['non-existent-1', 'non-existent-2'])
 
-      const savedData = JSON.parse(localStorage.setItem.mock.calls[0][1])
+      const savedData = JSON.parse(mockLocalStorage.setItem.mock.calls[0][1])
       expect(savedData).toHaveLength(2)
-      expect(savedData.find((entry: any) => entry.id === 'keep-1')).toBeDefined()
-      expect(savedData.find((entry: any) => entry.id === 'keep-2')).toBeDefined()
+      expect(savedData.find((entry: LotteryHistory) => entry.id === 'keep-1')).toBeDefined()
+      expect(savedData.find((entry: LotteryHistory) => entry.id === 'keep-2')).toBeDefined()
     })
 
     it('should handle localStorage errors gracefully', () => {
-      localStorage.getItem.mockImplementation(() => {
+      mockLocalStorage.getItem.mockImplementation(() => {
         throw new Error('Storage error')
       })
 
@@ -328,9 +346,9 @@ describe('copyToClipboard', () => {
       style: {},
       select: jest.fn(),
     }
-    jest.spyOn(document, 'createElement').mockReturnValue(mockTextArea as any)
-    jest.spyOn(document.body, 'appendChild').mockImplementation(() => mockTextArea as any)
-    jest.spyOn(document.body, 'removeChild').mockImplementation(() => mockTextArea as any)
+    jest.spyOn(document, 'createElement').mockReturnValue(mockTextArea as unknown as HTMLTextAreaElement)
+    jest.spyOn(document.body, 'appendChild').mockImplementation(() => mockTextArea as unknown as HTMLTextAreaElement)
+    jest.spyOn(document.body, 'removeChild').mockImplementation(() => mockTextArea as unknown as HTMLTextAreaElement)
     jest.spyOn(document, 'execCommand').mockReturnValue(true)
 
     const numbers = [7, 8, 9, 10, 11, 12]
@@ -363,9 +381,9 @@ describe('copyToClipboard', () => {
       style: {},
       select: jest.fn(),
     }
-    jest.spyOn(document, 'createElement').mockReturnValue(mockTextArea as any)
-    jest.spyOn(document.body, 'appendChild').mockImplementation(() => mockTextArea as any)
-    jest.spyOn(document.body, 'removeChild').mockImplementation(() => mockTextArea as any)
+    jest.spyOn(document, 'createElement').mockReturnValue(mockTextArea as unknown as HTMLTextAreaElement)
+    jest.spyOn(document.body, 'appendChild').mockImplementation(() => mockTextArea as unknown as HTMLTextAreaElement)
+    jest.spyOn(document.body, 'removeChild').mockImplementation(() => mockTextArea as unknown as HTMLTextAreaElement)
     jest.spyOn(document, 'execCommand').mockReturnValue(false) // Make fallback fail
 
     const numbers = [1, 2, 3, 4, 5, 6]
@@ -384,7 +402,7 @@ describe('copyToClipboard', () => {
 
   it('should return false and log error when exception occurs', async () => {
     // Mock clipboard.writeText to throw an error
-    navigator.clipboard.writeText.mockRejectedValue(new Error('Clipboard API error'))
+    mockClipboard.writeText.mockRejectedValue(new Error('Clipboard API error'))
 
     const numbers = [1, 2, 3, 4, 5, 6]
 
@@ -399,7 +417,7 @@ describe('copyMultipleToClipboard', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     // Reset navigator.clipboard.writeText to success by default
-    navigator.clipboard.writeText.mockResolvedValue()
+    mockClipboard.writeText.mockResolvedValue()
   })
 
   it('should copy multiple lottery histories to clipboard with newlines', async () => {
@@ -427,7 +445,7 @@ describe('copyMultipleToClipboard', () => {
   })
 
   it('should handle empty history array', async () => {
-    const histories: any[] = []
+    const histories: LotteryHistory[] = []
 
     const result = await copyMultipleToClipboard(histories)
 
@@ -448,9 +466,9 @@ describe('copyMultipleToClipboard', () => {
       style: {},
       select: jest.fn(),
     }
-    jest.spyOn(document, 'createElement').mockReturnValue(mockTextArea as any)
-    jest.spyOn(document.body, 'appendChild').mockImplementation(() => mockTextArea as any)
-    jest.spyOn(document.body, 'removeChild').mockImplementation(() => mockTextArea as any)
+    jest.spyOn(document, 'createElement').mockReturnValue(mockTextArea as unknown as HTMLTextAreaElement)
+    jest.spyOn(document.body, 'appendChild').mockImplementation(() => mockTextArea as unknown as HTMLTextAreaElement)
+    jest.spyOn(document.body, 'removeChild').mockImplementation(() => mockTextArea as unknown as HTMLTextAreaElement)
     jest.spyOn(document, 'execCommand').mockReturnValue(true)
 
     const histories = [
@@ -473,7 +491,7 @@ describe('copyMultipleToClipboard', () => {
   })
 
   it('should return false when clipboard operation fails', async () => {
-    navigator.clipboard.writeText.mockRejectedValue(new Error('Clipboard error'))
+    mockClipboard.writeText.mockRejectedValue(new Error('Clipboard error'))
 
     const histories = [
       { id: 'hist-1', numbers: [1, 2, 3, 4, 5, 6], ranges: [], timestamp: '2023-01-01', generatedBy: 'server' as const }

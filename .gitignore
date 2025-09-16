@@ -43,3 +43,8 @@ logs
 # Cache directories
 .cache/
 .parcel-cache/
+
+# MCP
+.playwright-mcp/
+# MCP Configuration files
+mcp_*.json

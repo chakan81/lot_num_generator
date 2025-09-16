@@ -91,7 +91,7 @@ const DualSlider = React.forwardRef<HTMLDivElement, DualSliderProps>(
         className={cn(
           "relative flex touch-none select-none items-center",
           orientation === "vertical"
-            ? "h-48 w-6 flex-col justify-end"
+            ? "h-44 sm:h-48 w-6 flex-col justify-end"
             : "h-6 w-full",
           className
         )}
@@ -183,14 +183,14 @@ const DualSlider = React.forwardRef<HTMLDivElement, DualSliderProps>(
           aria-valuenow={maxValue}
         />
 
-        {/* Value Labels */}
+        {/* Value Labels - Hidden on mobile */}
         {orientation === "vertical" && (
           <>
-            <div className="absolute -right-8 text-xs font-medium text-destructive"
+            <div className="absolute -right-8 text-xs font-medium text-destructive hidden sm:block"
                  style={{ bottom: `${maxPercent}%`, transform: "translateY(-50%)" }}>
               {maxValue}
             </div>
-            <div className="absolute -right-8 text-xs font-medium text-primary"
+            <div className="absolute -right-8 text-xs font-medium text-primary hidden sm:block"
                  style={{ bottom: `${minPercent}%`, transform: "translateY(-50%)" }}>
               {minValue}
             </div>

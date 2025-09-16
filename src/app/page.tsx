@@ -8,6 +8,7 @@ import { DualSlider } from '@/components/ui/dual-slider'
 import { settingsStorage, historyStorage, copyToClipboard, copyMultipleToClipboard, type SliderRange, type LotteryHistory } from '@/lib/storage'
 import { Copy, History, RotateCcw, Trash2, CheckSquare } from 'lucide-react'
 import { toast } from 'sonner'
+import { HeaderBannerAd, SidebarAd, FooterBannerAd } from '@/components/ads'
 
 export default function Home() {
   const [ranges, setRanges] = useState<SliderRange[]>([
@@ -216,7 +217,10 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-background to-muted/20">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 relative lg:pr-80">
+        {/* Sidebar Ads (Desktop only) */}
+        <SidebarAd />
+
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-foreground mb-4">
@@ -227,13 +231,17 @@ export default function Home() {
           </p>
         </div>
 
+        {/* Header Banner Ad */}
+        <HeaderBannerAd />
+
         {/* Generated Numbers Display */}
-        <div className="mb-12">
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-4 max-w-3xl mx-auto">
+        <section className="mb-12" aria-labelledby="generated-numbers">
+          <h2 id="generated-numbers" className="sr-only">생성된 로또 번호</h2>
+          <div className="grid grid-cols-6 gap-2 sm:gap-4 max-w-3xl mx-auto">
             {Array.from({ length: 6 }, (_, index) => (
-              <Card key={index} className="bg-card border-border">
-                <CardContent className="p-6 text-center">
-                  <div className="size-16 mx-auto bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center text-primary-foreground font-bold text-xl shadow-lg">
+              <Card key={index} className="bg-card border-border aspect-square">
+                <CardContent className="p-1 sm:p-6 text-center flex items-center justify-center h-full">
+                  <div className="size-10 sm:size-16 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center text-primary-foreground font-bold text-sm sm:text-xl shadow-lg">
                     {generatedNumbers[index] || '?'}
                   </div>
                 </CardContent>
@@ -254,15 +262,19 @@ export default function Home() {
               </Button>
             </div>
           )}
-        </div>
+        </section>
 
         {/* Range Controls */}
-        <div className="mb-12">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 max-w-6xl mx-auto">
+        <section className="mb-12" aria-labelledby="range-controls">
+          <h2 id="range-controls" className="text-2xl font-bold text-center mb-6">번호 범위 설정</h2>
+          <div className="grid grid-cols-6 gap-2 sm:gap-3 md:gap-4 lg:gap-6 max-w-6xl mx-auto">
             {ranges.map((range, index) => (
               <Card key={index} className="bg-card border-border">
-                <CardContent className="px-6 py-6">
+                <CardContent className="px-2 py-3 sm:px-6 sm:py-6">
                   <div className="flex flex-col items-center">
+                    {/* Max value display (mobile: top, desktop: side) */}
+                    <div className="text-xs sm:hidden text-destructive font-medium mb-4">{range.max}</div>
+
                     {/* Vertical Dual Slider */}
                     <div className="flex justify-center w-full">
                       <DualSlider
@@ -273,18 +285,21 @@ export default function Home() {
                         onMinChange={(value) => updateRange(index, 'min', value)}
                         onMaxChange={(value) => updateRange(index, 'max', value)}
                         orientation="vertical"
-                        className="mx-4"
+                        className="mx-2 sm:mx-4"
                       />
                     </div>
+
+                    {/* Min value display (mobile: bottom, desktop: side) */}
+                    <div className="text-xs sm:hidden text-primary font-medium mt-4">{range.min}</div>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
-        </div>
+        </section>
 
-        {/* Color Legend */}
-        <div className="flex justify-center gap-8 mb-12">
+        {/* Color Legend - Hidden on mobile since values are shown directly */}
+        <div className="hidden sm:flex justify-center gap-8 mb-12">
           <div className="flex items-center space-x-2">
             <div className="size-4 bg-destructive rounded-full shadow-sm"></div>
             <span className="text-sm font-medium text-muted-foreground">최대값</span>
@@ -315,11 +330,12 @@ export default function Home() {
         </div>
 
         {/* Usage Instructions */}
-        <div className="text-center mb-12">
+        <section className="text-center mb-12" aria-labelledby="usage-instructions">
+          <h3 id="usage-instructions" className="text-lg font-semibold mb-4">사용 방법</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-            각 번호의 세로 슬라이더에서 빨간색 핸들(최대값)과 초록색 핸들(최소값)을 드래그하여 범위를 설정한 후 '번호 만들기' 버튼을 눌러보세요
+            각 번호의 세로 슬라이더에서 빨간색 핸들(최대값)과 초록색 핸들(최소값)을 드래그하여 범위를 설정한 후 &apos;번호 만들기&apos; 버튼을 눌러보세요
           </p>
-        </div>
+        </section>
 
         {/* Settings & History Controls */}
         <div className="flex justify-center gap-4 mb-8">
@@ -345,7 +361,7 @@ export default function Home() {
         {showHistory && (
           <Card className="max-w-4xl mx-auto">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <CardTitle className="text-lg">생성 기록</CardTitle>
                   {history.length > 0 && (
@@ -355,34 +371,36 @@ export default function Home() {
                       size="sm"
                     >
                       <CheckSquare className="w-4 h-4 mr-2" />
-                      {isSelectMode ? '선택 취소' : '선택 모드'}
+                      <span className="hidden sm:inline">{isSelectMode ? '선택 취소' : '선택 모드'}</span>
+                      <span className="sm:hidden">{isSelectMode ? '취소' : '선택'}</span>
                     </Button>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {isSelectMode && selectedHistoryIds.size > 0 && (
-                    <>
-                      <Button
-                        onClick={handleMultipleCopy}
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Copy className="w-4 h-4 mr-2" />
-                        선택 복사 ({selectedHistoryIds.size})
-                      </Button>
-                      <Button
-                        onClick={handleMultipleDelete}
-                        variant="outline"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        선택 삭제 ({selectedHistoryIds.size})
-                      </Button>
-                    </>
-                  )}
-                </div>
+                {/* 데스크탑: 같은 줄 오른쪽, 모바일: 다음 줄 오른쪽 */}
+                {isSelectMode && selectedHistoryIds.size > 0 && (
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      onClick={handleMultipleCopy}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      <span className="hidden sm:inline">선택 복사 ({selectedHistoryIds.size})</span>
+                      <span className="sm:hidden">복사 ({selectedHistoryIds.size})</span>
+                    </Button>
+                    <Button
+                      onClick={handleMultipleDelete}
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      <span className="hidden sm:inline">선택 삭제 ({selectedHistoryIds.size})</span>
+                      <span className="sm:hidden">삭제 ({selectedHistoryIds.size})</span>
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {isSelectMode && history.length > 0 && (
@@ -417,20 +435,15 @@ export default function Home() {
                       )}
 
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="flex gap-1">
-                            {entry.numbers.map((number, index) => (
-                              <span
-                                key={index}
-                                className="inline-flex items-center justify-center w-8 h-8 text-xs font-semibold bg-primary text-primary-foreground rounded-full"
-                              >
-                                {number}
-                              </span>
-                            ))}
-                          </div>
-                          <span className={`text-xs px-2 py-1 rounded-full ${entry.generatedBy === 'server' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                            {entry.generatedBy === 'server' ? 'API' : '클라이언트'}
-                          </span>
+                        <div className="flex gap-1 mb-1">
+                          {entry.numbers.map((number, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center justify-center w-8 h-8 text-xs font-semibold bg-primary text-primary-foreground rounded-full"
+                            >
+                              {number}
+                            </span>
+                          ))}
                         </div>
                         <p className="text-xs text-muted-foreground">
                           {new Date(entry.timestamp).toLocaleString('ko-KR')}
@@ -453,6 +466,9 @@ export default function Home() {
             </CardContent>
           </Card>
         )}
+
+        {/* Footer Banner Ad */}
+        <FooterBannerAd />
       </div>
     </main>
   )
