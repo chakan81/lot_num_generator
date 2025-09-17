@@ -31,12 +31,12 @@ const DualSlider = React.forwardRef<HTMLDivElement, DualSliderProps>(
     const trackRef = React.useRef<HTMLDivElement>(null)
     const [isDraggingMin, setIsDraggingMin] = React.useState(false)
     const [isDraggingMax, setIsDraggingMax] = React.useState(false)
-    const [dragMinPercent, setDragMinPercent] = React.useState<number | null>(null)
-    const [dragMaxPercent, setDragMaxPercent] = React.useState<number | null>(null)
+    const [currentMinPercent, setCurrentMinPercent] = React.useState<number | null>(null)
+    const [currentMaxPercent, setCurrentMaxPercent] = React.useState<number | null>(null)
 
-    // Calculate positions based on values or drag state
-    const minPercent = dragMinPercent ?? ((minValue - min) / (max - min)) * 100
-    const maxPercent = dragMaxPercent ?? ((maxValue - min) / (max - min)) * 100
+    // Calculate positions - use real-time values during drag, actual values otherwise
+    const minPercent = currentMinPercent ?? ((minValue - min) / (max - min)) * 100
+    const maxPercent = currentMaxPercent ?? ((maxValue - min) / (max - min)) * 100
 
     const handleMove = React.useCallback(
       (clientX: number, clientY: number) => {
@@ -56,11 +56,13 @@ const DualSlider = React.forwardRef<HTMLDivElement, DualSliderProps>(
 
         if (isDraggingMin) {
           const newMinValue = Math.min(value, maxValue)
-          setDragMinPercent(((newMinValue - min) / (max - min)) * 100)
+          const newPercent = ((newMinValue - min) / (max - min)) * 100
+          setCurrentMinPercent(newPercent)
           onMinChange(newMinValue)
         } else if (isDraggingMax) {
           const newMaxValue = Math.max(value, minValue)
-          setDragMaxPercent(((newMaxValue - min) / (max - min)) * 100)
+          const newPercent = ((newMaxValue - min) / (max - min)) * 100
+          setCurrentMaxPercent(newPercent)
           onMaxChange(newMaxValue)
         }
       },
@@ -87,8 +89,8 @@ const DualSlider = React.forwardRef<HTMLDivElement, DualSliderProps>(
     const handleMouseUp = React.useCallback(() => {
       setIsDraggingMin(false)
       setIsDraggingMax(false)
-      setDragMinPercent(null)
-      setDragMaxPercent(null)
+      setCurrentMinPercent(null)
+      setCurrentMaxPercent(null)
     }, [])
 
     React.useEffect(() => {
@@ -152,7 +154,7 @@ const DualSlider = React.forwardRef<HTMLDivElement, DualSliderProps>(
         {/* Min Handle */}
         <div
           className={cn(
-            "absolute size-6 sm:size-4 rounded-full border-2 border-primary bg-background shadow-sm transition-all hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer touch-manipulation",
+            "absolute size-6 sm:size-4 rounded-full border-2 border-primary bg-background shadow-sm transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer touch-manipulation p-3 sm:p-0",
             isDraggingMin && "scale-110"
           )}
           style={
@@ -184,7 +186,7 @@ const DualSlider = React.forwardRef<HTMLDivElement, DualSliderProps>(
         {/* Max Handle */}
         <div
           className={cn(
-            "absolute size-6 sm:size-4 rounded-full border-2 border-destructive bg-background shadow-sm transition-all hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer touch-manipulation",
+            "absolute size-6 sm:size-4 rounded-full border-2 border-destructive bg-background shadow-sm transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer touch-manipulation p-3 sm:p-0",
             isDraggingMax && "scale-110"
           )}
           style={
