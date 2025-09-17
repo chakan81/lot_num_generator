@@ -1,40 +1,5 @@
-interface SliderRange {
-  min: number
-  max: number
-}
-
-interface AppSettings {
-  ranges: SliderRange[]
-  showHistory: boolean
-  lastUpdated: string
-}
-
-interface LotteryHistory {
-  id: string
-  numbers: number[]
-  ranges: SliderRange[]
-  timestamp: string
-  generatedBy: 'server' | 'client'
-}
-
-const STORAGE_KEYS = {
-  SETTINGS: 'lotto-user-settings',
-  HISTORY: 'lotto-generation-history'
-} as const
-
-// Default settings
-const DEFAULT_SETTINGS: AppSettings = {
-  ranges: [
-    { min: 1, max: 45 },
-    { min: 1, max: 45 },
-    { min: 1, max: 45 },
-    { min: 1, max: 45 },
-    { min: 1, max: 45 },
-    { min: 1, max: 45 },
-  ],
-  showHistory: true,
-  lastUpdated: new Date().toISOString()
-}
+import type { SliderRange, AppSettings, LotteryHistory } from '@/types/lottery'
+import { STORAGE_KEYS, DEFAULT_SETTINGS, LOTTERY_NUMBERS_COUNT, MAX_HISTORY_ENTRIES } from '@/constants/lottery'
 
 // Settings management
 export const settingsStorage = {
@@ -56,7 +21,7 @@ export const settingsStorage = {
       if (stored) {
         const parsed = JSON.parse(stored)
         // Validate structure
-        if (parsed.ranges && Array.isArray(parsed.ranges) && parsed.ranges.length === 6) {
+        if (parsed.ranges && Array.isArray(parsed.ranges) && parsed.ranges.length === LOTTERY_NUMBERS_COUNT) {
           return { ...DEFAULT_SETTINGS, ...parsed }
         }
       }
@@ -118,8 +83,8 @@ export const historyStorage = {
         id: generateUUID()
       }
 
-      // Add to beginning and keep only last 10
-      const updatedHistory = [newEntry, ...history].slice(0, 10)
+      // Add to beginning and keep only last MAX_HISTORY_ENTRIES
+      const updatedHistory = [newEntry, ...history].slice(0, MAX_HISTORY_ENTRIES)
       localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(updatedHistory))
       return true
     } catch (error) {
@@ -220,3 +185,6 @@ export const copyMultipleToClipboard = async (histories: LotteryHistory[]): Prom
 }
 
 export type { SliderRange, AppSettings, LotteryHistory }
+
+// Export utility functions
+export { generateUUID }
