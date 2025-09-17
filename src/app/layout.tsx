@@ -128,6 +128,15 @@ export default function RootLayout({
             crossOrigin="anonymous"
           />
         )}
+
+        {/* AdSense for approval - will be replaced by env var after approval */}
+        {!process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID && (
+          <script
+            async
+            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6661615978497993"
+            crossOrigin="anonymous"
+          />
+        )}
       </head>
       <body>
         {children}
