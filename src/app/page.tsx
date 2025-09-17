@@ -124,13 +124,20 @@ export default function Home() {
 
     // Save to history
     if (numbers.length > 0) {
-      historyStorage.save({
+      const saveSuccess = historyStorage.save({
         numbers,
         ranges: [...ranges],
         timestamp: new Date().toISOString(),
         generatedBy
       })
-      setHistory(historyStorage.load())
+
+      if (saveSuccess) {
+        setHistory(historyStorage.load())
+      } else {
+        toast.error('히스토리 저장에 실패했습니다.', {
+          description: 'HTTPS 환경에서 더 안정적으로 작동합니다.'
+        })
+      }
     }
   }, [ranges])
 
@@ -239,9 +246,9 @@ export default function Home() {
           <h2 id="generated-numbers" className="sr-only">생성된 로또 번호</h2>
           <div className="grid grid-cols-6 gap-2 sm:gap-4 max-w-3xl mx-auto">
             {Array.from({ length: 6 }, (_, index) => (
-              <Card key={index} className="bg-card border-border aspect-square">
-                <CardContent className="p-1 sm:p-6 text-center flex items-center justify-center h-full">
-                  <div className="size-10 sm:size-16 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center text-primary-foreground font-bold text-sm sm:text-xl shadow-lg">
+              <Card key={index} className="bg-card border-border aspect-square relative overflow-hidden">
+                <CardContent className="absolute inset-0 flex items-center justify-center p-0">
+                  <div className="w-[70%] h-[70%] bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center text-primary-foreground font-bold text-xs sm:text-sm md:text-base lg:text-lg shadow-lg">
                     {generatedNumbers[index] || '?'}
                   </div>
                 </CardContent>
@@ -273,7 +280,7 @@ export default function Home() {
                 <CardContent className="px-2 py-3 sm:px-6 sm:py-6">
                   <div className="flex flex-col items-center">
                     {/* Max value display (mobile: top, desktop: side) */}
-                    <div className="text-xs sm:hidden text-destructive font-medium mb-4">{range.max}</div>
+                    <div className="text-xs sm:hidden text-destructive font-medium mb-6">{range.max}</div>
 
                     {/* Vertical Dual Slider */}
                     <div className="flex justify-center w-full">
@@ -290,7 +297,7 @@ export default function Home() {
                     </div>
 
                     {/* Min value display (mobile: bottom, desktop: side) */}
-                    <div className="text-xs sm:hidden text-primary font-medium mt-4">{range.min}</div>
+                    <div className="text-xs sm:hidden text-primary font-medium mt-6">{range.min}</div>
                   </div>
                 </CardContent>
               </Card>

@@ -38,17 +38,17 @@ const DualSlider = React.forwardRef<HTMLDivElement, DualSliderProps>(
     const minPercent = dragMinPercent ?? ((minValue - min) / (max - min)) * 100
     const maxPercent = dragMaxPercent ?? ((maxValue - min) / (max - min)) * 100
 
-    const handleMouseMove = React.useCallback(
-      (e: MouseEvent) => {
+    const handleMove = React.useCallback(
+      (clientX: number, clientY: number) => {
         if (!trackRef.current) return
 
         const rect = trackRef.current.getBoundingClientRect()
         let percent: number
 
         if (orientation === "vertical") {
-          percent = ((rect.bottom - e.clientY) / rect.height) * 100
+          percent = ((rect.bottom - clientY) / rect.height) * 100
         } else {
-          percent = ((e.clientX - rect.left) / rect.width) * 100
+          percent = ((clientX - rect.left) / rect.width) * 100
         }
 
         percent = Math.max(0, Math.min(100, percent))
@@ -67,6 +67,23 @@ const DualSlider = React.forwardRef<HTMLDivElement, DualSliderProps>(
       [isDraggingMin, isDraggingMax, min, max, minValue, maxValue, onMinChange, onMaxChange, orientation]
     )
 
+    const handleMouseMove = React.useCallback(
+      (e: MouseEvent) => {
+        handleMove(e.clientX, e.clientY)
+      },
+      [handleMove]
+    )
+
+    const handleTouchMove = React.useCallback(
+      (e: TouchEvent) => {
+        if (e.touches.length > 0) {
+          const touch = e.touches[0]
+          handleMove(touch.clientX, touch.clientY)
+        }
+      },
+      [handleMove]
+    )
+
     const handleMouseUp = React.useCallback(() => {
       setIsDraggingMin(false)
       setIsDraggingMax(false)
@@ -78,12 +95,16 @@ const DualSlider = React.forwardRef<HTMLDivElement, DualSliderProps>(
       if (isDraggingMin || isDraggingMax) {
         document.addEventListener("mousemove", handleMouseMove)
         document.addEventListener("mouseup", handleMouseUp)
+        document.addEventListener("touchmove", handleTouchMove, { passive: false })
+        document.addEventListener("touchend", handleMouseUp)
         return () => {
           document.removeEventListener("mousemove", handleMouseMove)
           document.removeEventListener("mouseup", handleMouseUp)
+          document.removeEventListener("touchmove", handleTouchMove)
+          document.removeEventListener("touchend", handleMouseUp)
         }
       }
-    }, [isDraggingMin, isDraggingMax, handleMouseMove, handleMouseUp])
+    }, [isDraggingMin, isDraggingMax, handleMouseMove, handleTouchMove, handleMouseUp])
 
     return (
       <div
@@ -131,7 +152,7 @@ const DualSlider = React.forwardRef<HTMLDivElement, DualSliderProps>(
         {/* Min Handle */}
         <div
           className={cn(
-            "absolute size-4 rounded-full border-2 border-primary bg-background shadow-sm transition-all hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer",
+            "absolute size-6 sm:size-4 rounded-full border-2 border-primary bg-background shadow-sm transition-all hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer touch-manipulation",
             isDraggingMin && "scale-110"
           )}
           style={
@@ -148,6 +169,10 @@ const DualSlider = React.forwardRef<HTMLDivElement, DualSliderProps>(
                 }
           }
           onMouseDown={() => setIsDraggingMin(true)}
+          onTouchStart={(e) => {
+            e.preventDefault()
+            setIsDraggingMin(true)
+          }}
           tabIndex={0}
           role="slider"
           aria-label="Minimum value"
@@ -159,7 +184,7 @@ const DualSlider = React.forwardRef<HTMLDivElement, DualSliderProps>(
         {/* Max Handle */}
         <div
           className={cn(
-            "absolute size-4 rounded-full border-2 border-destructive bg-background shadow-sm transition-all hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer",
+            "absolute size-6 sm:size-4 rounded-full border-2 border-destructive bg-background shadow-sm transition-all hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer touch-manipulation",
             isDraggingMax && "scale-110"
           )}
           style={
@@ -176,6 +201,10 @@ const DualSlider = React.forwardRef<HTMLDivElement, DualSliderProps>(
                 }
           }
           onMouseDown={() => setIsDraggingMax(true)}
+          onTouchStart={(e) => {
+            e.preventDefault()
+            setIsDraggingMax(true)
+          }}
           tabIndex={0}
           role="slider"
           aria-label="Maximum value"

@@ -76,21 +76,55 @@ export const settingsStorage = {
   }
 }
 
+// Generate UUID with fallback for environments without crypto.randomUUID()
+const generateUUID = (): string => {
+  // Try native crypto.randomUUID() first (preferred)
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    try {
+      return crypto.randomUUID()
+    } catch (error) {
+      console.warn('crypto.randomUUID() failed, falling back to alternative method:', error)
+    }
+  }
+
+  // Fallback: Generate UUID v4 manually using crypto.getRandomValues()
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    try {
+      const bytes = crypto.getRandomValues(new Uint8Array(16))
+      bytes[6] = (bytes[6] & 0x0f) | 0x40 // Version 4
+      bytes[8] = (bytes[8] & 0x3f) | 0x80 // Variant bits
+
+      const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
+      return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`
+    } catch (error) {
+      console.warn('crypto.getRandomValues() failed, falling back to Math.random():', error)
+    }
+  }
+
+  // Last resort fallback: Use Math.random() (less secure but works everywhere)
+  const timestamp = Date.now().toString(36)
+  const randomPart = Math.random().toString(36).substring(2, 15)
+  const randomPart2 = Math.random().toString(36).substring(2, 15)
+  return `${timestamp}-${randomPart}-${randomPart2}-${Date.now()}`
+}
+
 // History management
 export const historyStorage = {
-  save: (entry: Omit<LotteryHistory, 'id'>): void => {
+  save: (entry: Omit<LotteryHistory, 'id'>): boolean => {
     try {
       const history = historyStorage.load()
       const newEntry: LotteryHistory = {
         ...entry,
-        id: crypto.randomUUID()
+        id: generateUUID()
       }
 
       // Add to beginning and keep only last 10
       const updatedHistory = [newEntry, ...history].slice(0, 10)
       localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(updatedHistory))
+      return true
     } catch (error) {
       console.error('Failed to save history:', error)
+      return false
     }
   },
 
