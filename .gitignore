@@ -46,5 +46,6 @@ logs
 
 # MCP
 .playwright-mcp/
+
 # MCP Configuration files
 mcp_*.json

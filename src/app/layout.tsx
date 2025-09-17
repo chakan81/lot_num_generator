@@ -18,6 +18,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/',
   },
+  icons: {
+    icon: '/favicon.svg',
+  },
   openGraph: {
     title: '로또 번호 생성기 - 개별 범위 설정으로 랜덤 번호 생성',
     description: '6개의 로또 번호를 각각 다른 범위로 설정하여 생성하는 고급 로또 번호 생성기. 설정 저장, 히스토리 관리, 복사 기능을 지원합니다.',

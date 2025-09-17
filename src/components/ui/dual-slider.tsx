@@ -95,6 +95,7 @@ const DualSlider = React.forwardRef<HTMLDivElement, DualSliderProps>(
             : "h-6 w-full",
           className
         )}
+        suppressHydrationWarning
       >
         {/* Track */}
         <div

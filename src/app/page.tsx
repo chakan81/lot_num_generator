@@ -235,7 +235,7 @@ export default function Home() {
         <HeaderBannerAd />
 
         {/* Generated Numbers Display */}
-        <section className="mb-12" aria-labelledby="generated-numbers">
+        <section className="mb-12" aria-labelledby="generated-numbers" suppressHydrationWarning>
           <h2 id="generated-numbers" className="sr-only">생성된 로또 번호</h2>
           <div className="grid grid-cols-6 gap-2 sm:gap-4 max-w-3xl mx-auto">
             {Array.from({ length: 6 }, (_, index) => (
@@ -265,7 +265,7 @@ export default function Home() {
         </section>
 
         {/* Range Controls */}
-        <section className="mb-12" aria-labelledby="range-controls">
+        <section className="mb-12" aria-labelledby="range-controls" suppressHydrationWarning>
           <h2 id="range-controls" className="text-2xl font-bold text-center mb-6">번호 범위 설정</h2>
           <div className="grid grid-cols-6 gap-2 sm:gap-3 md:gap-4 lg:gap-6 max-w-6xl mx-auto">
             {ranges.map((range, index) => (
