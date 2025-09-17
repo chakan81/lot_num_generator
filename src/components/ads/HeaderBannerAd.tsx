@@ -8,7 +8,7 @@ export function HeaderBannerAd() {
       <AdSenseAd
         adSlot={process.env.NEXT_PUBLIC_ADSENSE_HEADER_BANNER_SLOT || '1234567890'}
         adFormat="horizontal"
-        className="w-full h-[50px] md:h-[90px] max-w-[320px] md:max-w-[728px]"
+        className="w-full !h-[50px] md:!h-[90px] !max-w-[320px] md:!max-w-[728px]"
       />
     </div>
   )
