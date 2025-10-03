@@ -9,4 +9,4 @@
 # 2. Replace the placeholder with your actual publisher ID
 # 3. Uncomment the line below
 #
-# google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
+google.com, pub-6661615978497993, DIRECT, f08c47fec0942fa0
